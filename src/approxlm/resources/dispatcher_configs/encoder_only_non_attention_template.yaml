@@ -1,0 +1,36 @@
+dispatcher_name: encoder_only_non_attention_template
+description: >
+  Example encoder-only dispatcher config that approximates only the non-attention
+  linear layers inside selected encoder blocks.
+
+base_config:
+  task_type: classification
+  model_url: qanastek/XLMRoberta-Alexa-Intents-Classification
+  dataset_url: AmazonScience/massive
+  trace_enabled: true
+  attention_mode: cls_row
+
+defaults:
+  architecture: encoder_only
+  num_encoder_layers: 12
+  default_mode: int8_exact
+  classifier_mode: int8_exact
+
+experiments:
+  - name: baseline_int8_exact_all
+    label: baseline:int8_exact:all
+    tags: [baseline, encoder_only, int8_exact]
+
+  - name: mul8s_1KVA_non_attention_all_encoder_layers
+    label: mul8s_1KVA:non_attention:all
+    tags: [all_layers, encoder_only, non_attention, mul8s_1KVA]
+    encoder_mode: mul8s_1KVA
+    encoder_blocks: all
+    encoder_layer_scope: non_attention
+
+  - name: mul8s_1KVA_non_attention_encoder_block_0
+    label: mul8s_1KVA:non_attention:encoder_0
+    tags: [single_block, encoder_only, non_attention, mul8s_1KVA]
+    encoder_mode: mul8s_1KVA
+    encoder_blocks: [0]
+    encoder_layer_scope: non_attention

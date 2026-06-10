@@ -1,0 +1,55 @@
+dispatcher_name: encoder_only_massive_all_attention_ffn_all_multipliers
+description: >
+  Encoder-only XLM-R MASSIVE per-linear-layer ablation with a shared int8_exact
+  baseline. Each mul8 multiplier is evaluated one encoder linear layer at a
+  time across all 12 blocks: attention query/key/value/output plus FFN
+  intermediate/output layers. No attention or FFN block groups are combined.
+
+metrics_to_plot:
+  - accuracy
+  - precision
+  - recall
+  - f1
+
+base_config:
+  task_type: classification
+  model_url: qanastek/XLMRoberta-Alexa-Intents-Classification
+  dataset_url: AmazonScience/massive
+  trace_enabled: true
+  attention_mode: cls_row
+
+defaults:
+  architecture: encoder_only
+  num_encoder_layers: 12
+  default_mode: int8_exact
+  classifier_mode: fp32
+
+experiments:
+  - name: baseline_int8_exact_encoder_classifier_fp32
+    label: baseline:int8_exact:encoder:classifier_fp32
+    tags: [baseline, encoder_only, int8_exact, classifier_fp32]
+
+sweeps:
+#  - multiplier: mul8s_1KR3
+#    encoder_layer_scope: all
+#    include_all_encoder_layers: false
+#    include_single_encoder_blocks: false
+#    include_single_encoder_layers: true
+
+  - multiplier: mul8s_1KVB
+    encoder_layer_scope: all
+    include_all_encoder_layers: false
+    include_single_encoder_blocks: false
+    include_single_encoder_layers: true
+
+ # - multiplier: mul8s_1KVB
+ #   encoder_layer_scope: all
+ #   include_all_encoder_layers: false
+ #   include_single_encoder_blocks: false
+ #   include_single_encoder_layers: true
+
+ # - multiplier: mul8s_1KVA
+ #   encoder_layer_scope: all
+ #   include_all_encoder_layers: false
+ #   include_single_encoder_blocks: false
+ #   include_single_encoder_layers: true

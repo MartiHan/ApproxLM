@@ -1,0 +1,51 @@
+dispatcher_name: decoder_only_wiki2_non_attention_rest
+description: >
+  Shared int8 baseline followed by decoder-only non-attention sweeps on WikiText-2
+  perplexity for the remaining mul8 multiplier cases.
+
+metrics_to_plot:
+  - perplexity
+  - avg_nll
+  - reference_token_count
+
+base_config:
+  task_type: decoder_only
+  model_url: Qwen/Qwen3-0.6B-GPTQ-Int8
+  dataset_url: wikitext
+  dataset_config: wikitext-2-raw-v1
+  dataset_format: wikitext
+  split_name: test
+  max_samples: 0
+  max_input_length: 1024
+  max_new_tokens: 128
+  batch_size: 1
+  perplexity_stride: 512
+  calibration_batches: 16
+  calibration_percentile: 99.9
+  trust_remote_code: false
+  do_sample: false
+  temperature: 0.7
+  top_k: 20
+  bertscore_model: bert-base-uncased
+  trace_enabled: false
+  attention_mode:
+
+defaults:
+  architecture: decoder_only
+  num_decoder_layers: 28
+  default_mode: int8_exact
+
+experiments:
+  - name: baseline_int8_exact_all
+    label: baseline:int8_exact:all
+    tags: [baseline, decoder_only, int8_exact]
+
+sweeps:
+  - multiplier: mul8s_1KR6
+    decoder_layer_scope: non_attention
+    include_all_decoder_layers: false
+    start_decoder_block: 2
+    end_decoder_block: 27
+
+  - multiplier: mul8s_1KR3
+    decoder_layer_scope: non_attention

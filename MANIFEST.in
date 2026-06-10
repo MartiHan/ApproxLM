@@ -1,0 +1,2 @@
+recursive-include src/approxlm/resources *.yaml *.npy
+include README.md LICENSE

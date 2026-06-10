@@ -1,0 +1,56 @@
+dispatcher_name: decoder_only_alpaca_non_attention_all_multipliers
+description: >
+  Shared int8 baseline followed by decoder-only non-attention sweeps on the Alpaca
+  dataset for all supported mul8 multipliers. Each multiplier runs one "all decoders"
+  case and one case per decoder block.
+
+metrics_to_plot:
+  - bleu
+  - rouge_l
+  - perplexity
+  - bertscore_precision
+  - bertscore_recall
+  - bertscore_f1
+
+base_config:
+  task_type: decoder_only
+  model_url: Qwen/Qwen3-0.6B-GPTQ-Int8
+  dataset_url: tatsu-lab/alpaca
+  dataset_config:
+  split_name: train
+  max_samples: 10
+  max_input_length: 1024
+  max_new_tokens: 128
+  batch_size: 4
+  calibration_batches: 16
+  calibration_percentile: 99.9
+  trust_remote_code: false
+  do_sample: false
+  temperature: 0.7
+  top_k: 40
+  bertscore_model: bert-base-uncased
+  trace_enabled: false
+  attention_mode:
+
+defaults:
+  architecture: decoder_only
+  num_decoder_layers: 28
+  default_mode: int8_exact
+
+experiments:
+  - name: baseline_int8_exact_all
+    label: baseline:int8_exact:all
+    tags: [baseline, decoder_only, int8_exact]
+
+sweeps:
+  - multiplier: mul8s_1KVA
+    decoder_layer_scope: non_attention
+
+  - multiplier: mul8s_1KVB
+    decoder_layer_scope: non_attention
+
+  - multiplier: mul8s_1KR6
+    decoder_layer_scope: non_attention
+
+  - multiplier: mul8s_1KR3
+    decoder_layer_scope: non_attention
