@@ -32,6 +32,10 @@ The framework is designed for experiments such as:
 - qualitative logit and hidden-state drift inspection,
 - reproducible batch experiment dispatch from YAML recipes.
 
+## GPU
+
+ApproxLM can run on CPU for small debugging runs, but GPU execution is strongly recommended for realistic experiments. 
+The experiments reported in the project were run on an NVIDIA GeForce RTX 4050 Laptop GPU with 6 GB of VRAM. 
 
 ## Installation
 
@@ -89,7 +93,7 @@ from approxlm.domain.config import (
 )
 
 config = ExperimentConfig(
-    name="xlmr_massive_layer0_intermediate_approx",
+    name="xlmr_massive_layer0_intermediate_mul8s_1KVA",
 
     model=ModelConfig(
         hf_id="qanastek/XLMRoberta-Alexa-Intents-Classification",
