@@ -1,4 +1,3 @@
-````markdown
 <div align="center">
 
 # ApproxLM
@@ -33,7 +32,6 @@ The framework is designed for experiments such as:
 - qualitative logit and hidden-state drift inspection,
 - reproducible batch experiment dispatch from YAML recipes.
 
-````
 
 ## Installation
 
