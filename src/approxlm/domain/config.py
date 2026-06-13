@@ -1,7 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Dict, Literal, Optional
+
+from approxlm.application.luts import resolve_lut_path
 
 TaskType = Literal['classification','decoder_only']
 
@@ -81,5 +82,4 @@ class ExperimentConfig:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def resolve_lut(self, mode: str) -> str:
-        filename = mode if mode.endswith('.npy') else f'{mode}.npy'
-        return str(Path(self.lut_directory or '.').joinpath(filename))
+        return resolve_lut_path(mode, lut_directory=self.lut_directory)

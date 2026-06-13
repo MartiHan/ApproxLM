@@ -21,6 +21,7 @@ from approxlm.interfaces.streamlit.config import (
     init_state,
     run_experiment_backend,
 )
+from approxlm.application.luts import options_with_current
 from approxlm.application.analysis import compute_drift_statistics, experiment_display_label, metrics_to_table
 from approxlm.adapters.persistence.sqlite import (
     delete_experiment,
@@ -172,12 +173,15 @@ def _render_layer_selectors(
                         source_name = layer_name.replace(f".{block_idx}.", ".0.", 1)
                         st.session_state[state_key][layer_name] = st.session_state[state_key].get(source_name, "fp32")
                     else:
+                        options = options_with_current(APPROX_OPTIONS, current)
                         st.session_state[state_key][layer_name] = st.selectbox(
                             layer_name.split(f"{layer_prefix}.{block_idx}.")[-1],
-                            APPROX_OPTIONS,
-                            index=APPROX_OPTIONS.index(current) if current in APPROX_OPTIONS else 0,
+                            options,
+                            index=options.index(current) if current in options else 0,
                             key=f"{state_key}_{layer_name}",
                             disabled=apply_all and block_idx > 0,
+                            accept_new_options=True,
+                            help="Select a preset or type a LUT name/path. Names are resolved as <name>.npy in the current working directory, then packaged resources.",
                         )
 
 
