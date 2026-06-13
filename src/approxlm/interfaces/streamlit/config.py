@@ -8,17 +8,12 @@ import torch.nn as nn
 import streamlit as st
 from transformers import AutoConfig, AutoModelForCausalLM, AutoModelForSequenceClassification
 
-from approxlm.adapters.huggingface.evaluation import (
-
-    run_baseline_experiment,
-    run_decoder_only_experiment,
-    run_qualitative_decoder_evaluation,
-    run_quantized_per_layer_experiment,
-)
-
-from approxlm.application.luts import resolve_lut_path
-from approxlm.domain.specs import LayerQuantSpec
+from approxlm.adapters.huggingface.evaluation import run_qualitative_decoder_evaluation
+from approxlm.application.runtime import build_layer_specs, is_fp32_baseline, mode_to_lut_path, run_experiment_backend
 from approxlm.application.defaults import DEFAULT_MODEL, DEFAULT_DATASET, DEFAULT_DECODER_MODEL, DEFAULT_DECODER_DATASET, APPROX_OPTIONS, DEFAULT_TRACE_ENABLED, DEFAULT_ATTENTION_MODE, BLOCK_INDEX_PATTERN
+
+
+CUSTOM_LUT_OPTION = "custom LUT"
 
 
 try:
@@ -164,108 +159,37 @@ def refresh_architecture_state(
     st.session_state[error_state_key] = None
 
 
-def is_fp32_baseline(layer_modes: Dict[str, str]) -> bool:
-    return all(mode in {None, "None", "fp32"} for mode in layer_modes.values())
-
-
-def mode_to_lut_path(mode: str | None) -> str | None:
-    return resolve_lut_path(mode)
-
-
-def build_layer_specs(layer_modes: Dict[str, str], task_type: str = "classification") -> Dict[str, LayerQuantSpec]:
-    specs: Dict[str, LayerQuantSpec] = {}
-    act_per_channel = task_type == "decoder_only"
-    for layer_name, mode in layer_modes.items():
-        if mode in {None, "None", "fp32"}:
-            continue
-
-        specs[layer_name] = LayerQuantSpec(
-            act_data_type="int8",
-            weight_data_type="int8",
-            act_symmetric=True,
-            weight_symmetric=True,
-            act_per_channel=act_per_channel,
-            weight_per_channel=True,
-            approx_lut_path=mode_to_lut_path(mode),
-        )
-    return specs
-
-
-def run_experiment_backend(
-    config: Dict[str, Any],
-    progress_callback=None,
-    trace_enabled: bool = DEFAULT_TRACE_ENABLED,
-    attention_mode: str = DEFAULT_ATTENTION_MODE,
-) -> Dict[str, Any]:
-    task_type = config.get("task_type", "classification")
-    if task_type == "decoder_only":
-        if is_fp32_baseline(config["layer_modes"]):
-            layer_specs = None
-        else:
-            layer_specs = build_layer_specs(config["layer_modes"], task_type=task_type)
-            if not layer_specs:
-                raise RuntimeError("No quantized or approximate decoder layers were selected.")
-
-        return run_decoder_only_experiment(
-            model_name=config["model_url"],
-            dataset_name=config.get("dataset_url", DEFAULT_DECODER_DATASET),
-            split_name=config.get("split_name", "train"),
-            dataset_config=config.get("dataset_config"),
-            dataset_format=config.get("dataset_format", "auto"),
-            layer_specs=layer_specs,
-            batch_size=config.get("batch_size", 4),
-            perplexity_stride=config.get("perplexity_stride"),
-            wikitext_token_limit=config.get("wikitext_token_limit"),
-            max_input_length=config.get("max_input_length", 1024),
-            max_new_tokens=config.get("max_new_tokens", 128),
-            max_samples=config.get("max_samples", 100),
-            calibration_percentile=config.get("calibration_percentile", 99.9),
-            calibration_batches=config.get("calibration_batches", 16),
-            trust_remote_code=config.get("trust_remote_code", False),
-            do_sample=config.get("do_sample", False),
-            temperature=config.get("temperature", 0.7),
-            top_k=config.get("top_k", 40),
-            bertscore_model=config.get("bertscore_model", "bert-base-uncased"),
-            backend_quantize=config.get("backend_quantize", True),
-            trace_enabled=trace_enabled,
-            profile_layer_modes=config["layer_modes"],
-            progress_callback=progress_callback,
-        )
-
-    common_kwargs = {
-        "model_name": config["model_url"],
-        "dataset_name": "AmazonScience/massive",
-        "dataset_revision": "refs/convert/parquet",
-        "dataset_data_dir": "en-US",
-        "text_col": "utt",
-        "label_col": "intent",
-        "max_length": 128,
-        "split_name": "test",
-        "trace_enabled": trace_enabled,
-        "attention_mode": attention_mode,
-        "progress_callback": progress_callback,
-    }
-
-    if is_fp32_baseline(config["layer_modes"]):
-        return run_baseline_experiment(
-            batch_size=256,
-            profile_layer_modes=config["layer_modes"],
-            **common_kwargs,
-        )
-
-    layer_specs = build_layer_specs(config["layer_modes"], task_type=task_type)
-    if not layer_specs:
-        raise RuntimeError("No quantized or approximate layers were selected.")
-
-    return run_quantized_per_layer_experiment(
-        layer_specs=layer_specs,
-        batch_size=256,
-        calibration_percentile=99.9,
-        calibration_batches=50,
-        backend_quantize=config.get("backend_quantize", True),
-        profile_layer_modes=config["layer_modes"],
-        **common_kwargs,
+def render_lut_mode_selector(
+    label: str,
+    *,
+    current: str | None,
+    key: str,
+    disabled: bool = False,
+) -> str:
+    current = current or "fp32"
+    is_custom = current not in APPROX_OPTIONS
+    options = list(APPROX_OPTIONS)
+    options.append(CUSTOM_LUT_OPTION)
+    selected = st.selectbox(
+        label,
+        options,
+        index=options.index(CUSTOM_LUT_OPTION) if is_custom else options.index(current),
+        key=key,
+        disabled=disabled,
+        help="Select a preset or choose custom LUT to enter a LUT name/path. Names are resolved as <name>.npy in the current working directory, then packaged resources.",
     )
+    if selected != CUSTOM_LUT_OPTION:
+        return selected
+
+    custom_value = st.text_input(
+        f"{label} custom LUT",
+        value=current if is_custom else "",
+        key=f"{key}_custom",
+        disabled=disabled,
+        placeholder="my_lut or path/to/my_lut.npy",
+        label_visibility="collapsed",
+    ).strip()
+    return custom_value or (current if is_custom else "fp32")
 
 
 def run_qualitative_backend(

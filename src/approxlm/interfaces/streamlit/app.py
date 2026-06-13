@@ -1,6 +1,5 @@
 import json
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict
 
 import altair as alt
@@ -9,7 +8,6 @@ import pandas as pd
 import streamlit as st
 
 from approxlm.interfaces.streamlit.config import (
-    APPROX_OPTIONS,
     DEFAULT_ATTENTION_MODE,
     DEFAULT_DATASET,
     DEFAULT_DECODER_DATASET,
@@ -21,11 +19,11 @@ from approxlm.interfaces.streamlit.config import (
     default_experiment_name,
     init_state,
     refresh_architecture_state,
+    render_lut_mode_selector,
     run_experiment_backend,
     run_qualitative_backend,
 )
-from approxlm.application.luts import options_with_current
-from approxlm.application.dispatcher import build_dispatcher_summary, load_dispatcher_config
+from approxlm.application.dispatcher import build_dispatcher_summary, run_dispatcher_config
 from approxlm.application.analysis import compute_drift_statistics, experiment_display_label, metrics_to_table
 from approxlm.adapters.persistence.sqlite import (
     delete_experiment,
@@ -249,15 +247,11 @@ def _render_layer_selectors(
                         if source_layer is not None:
                             st.session_state[state_key][layer_name] = st.session_state[state_key].get(source_layer, "fp32")
                     else:
-                        options = options_with_current(APPROX_OPTIONS, current)
-                        st.session_state[state_key][layer_name] = st.selectbox(
+                        st.session_state[state_key][layer_name] = render_lut_mode_selector(
                             item.get("suffix") or layer_name,
-                            options,
-                            index=options.index(current) if current in options else 0,
                             key=f"{state_key}_{layer_name}",
+                            current=current,
                             disabled=disable_item,
-                            accept_new_options=True,
-                            help="Select a preset or type a LUT name/path. Names are resolved as <name>.npy in the current working directory, then packaged resources.",
                         )
 
 
@@ -420,52 +414,14 @@ def _render_dispatcher_summary(summary: Dict[str, Any]) -> None:
 
 
 def _run_dispatcher(config_path: str) -> None:
-    dispatcher = load_dispatcher_config(config_path)
-    experiments = dispatcher.get("experiments", [])
-    if not experiments:
-        raise RuntimeError("Dispatcher config does not contain any experiments.")
+    overall_progress = st.container().progress(0, text="Loading dispatcher...")
 
-    dispatcher_name = dispatcher.get("dispatcher_name", Path(config_path).stem)
-    dispatcher_run_id = datetime.now().strftime("dispatch_%Y%m%d_%H%M%S_%f")
-    base_config = dict(dispatcher.get("base_config", {}))
-    metrics_to_plot = dispatcher.get("metrics_to_plot")
-    records = []
-    overall_progress = st.container().progress(0, text=f"Loading dispatcher: {dispatcher_name}")
-    total = len(experiments)
+    def update_progress(progress: float, message: str) -> None:
+        overall_progress.progress(max(0, min(int(progress * 100), 100)), text=message)
 
-    for index, experiment in enumerate(experiments, start=1):
-        experiment_name = experiment.get("name") or f"{dispatcher_name}_{index:02d}"
-        experiment_label = experiment.get("label") or experiment_name
-        run_config = {
-            **base_config,
-            **{k: v for k, v in experiment.items() if k not in {"name", "label", "tags"}},
-            "dispatcher_name": dispatcher_name,
-            "dispatcher_run_id": dispatcher_run_id,
-            "dispatcher_order": index - 1,
-            "dispatcher_experiment_name": experiment_name,
-            "dispatcher_experiment_label": experiment_label,
-            "dispatcher_tags": list(experiment.get("tags", [])),
-        }
-        if metrics_to_plot is not None:
-            run_config["metrics_to_plot"] = metrics_to_plot
-
-        def update_progress(progress: float, message: str, run_index: int = index, run_label: str = experiment_label) -> None:
-            normalized = ((run_index - 1) + max(0.0, min(progress, 1.0))) / max(total, 1)
-            overall_progress.progress(
-                max(0, min(int(normalized * 100), 100)),
-                text=f"[{run_index}/{total}] {run_label} | {message}",
-            )
-
-        records.append(
-            _execute_and_store_experiment(
-                experiment_name=experiment_name,
-                config=run_config,
-                progress_callback=update_progress,
-            )
-        )
-
-    overall_progress.progress(100, text=f"Dispatcher finished: {dispatcher_name}")
-    st.session_state.dispatcher_summary = build_dispatcher_summary(records)
+    result = run_dispatcher_config(config_path, progress_callback=update_progress)
+    records = result["records"]
+    st.session_state.dispatcher_summary = result["summary"]
     st.session_state.selected_experiment_id = records[-1]["experiment_id"]
 
 
@@ -475,9 +431,9 @@ def _render_dispatcher_panel() -> None:
         "Dispatcher config path",
         value=DEFAULT_DISPATCHER_CONFIG,
         key="dispatcher_config_path",
-        help="JSON or YAML config describing the experiment set to run sequentially.",
+        help="YAML config describing the experiment set to run sequentially.",
     )
-    st.caption("Select a JSON or YAML dispatcher config to run a sequential experiment sweep.")
+    st.caption("Select a YAML dispatcher config to run a sequential experiment sweep.")
 
     if st.button("Run dispatcher", type="primary", use_container_width=True, key="run_dispatcher_button"):
         try:
