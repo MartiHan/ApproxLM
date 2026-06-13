@@ -1,0 +1,24 @@
+name: qwen_down_proj_mul8s_1KR3
+model:
+  hf_id: Qwen/Qwen2-0.5B
+  task_type: decoder_only
+  trust_remote_code: true
+dataset:
+  name: wikitext
+  config: wikitext-2-raw-v1
+  format: wikitext
+  split: test
+quantization:
+  activation: {format: int8, symmetric: true, per_channel: true}
+  weight: {format: int8, symmetric: true, per_channel: true}
+  calibration: {method: histogram, percentile: 99.9, batches: 4}
+runtime:
+  batch_size: 1
+  max_samples: 16
+  max_input_length: 512
+  max_new_tokens: 32
+  device: cuda
+trace: {enabled: false}
+lut_directory: src/axlm/resources/luts
+layer_modes:
+  model.layers.0.mlp.down_proj: mul8s_1KR3

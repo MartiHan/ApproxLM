@@ -65,12 +65,6 @@ For the Streamlit interface:
 pip install -e ".[gui]"
 ```
 
-For development:
-
-```bash
-pip install -e ".[dev]"
-```
-
 ---
 
 ## Quick start: headless Python evaluation
@@ -78,81 +72,67 @@ pip install -e ".[dev]"
 The following example evaluates one selected XLM-RoBERTa layer with an approximate INT8 multiplier LUT.
 
 ```python
-from approxlm import run_experiment
-from approxlm.domain.config import (
+import json
+
+from approxlm import (
+    CalibrationConfig,
+    DatasetConfig,
     ExperimentConfig,
     ModelConfig,
-    DatasetConfig,
-    RuntimeConfig,
     QuantizationConfig,
-    QuantTensorConfig,
-    CalibrationConfig,
-    ApproximationConfig,
-    LayerPolicyConfig,
-    LayerRule,
+    QuantizerConfig,
+    RuntimeConfig,
+    TraceConfig,
+    run_experiment,
 )
 
-config = ExperimentConfig(
-    name="xlmr_massive_layer0_intermediate_mul8s_1KVA",
 
-    model=ModelConfig(
-        hf_id="qanastek/XLMRoberta-Alexa-Intents-Classification",
-        family="xlm_roberta",
-        task_type="sequence_classification",
-    ),
-
-    dataset=DatasetConfig(
-        name="AmazonScience/massive",
-        split="test",
-        revision="refs/convert/parquet",
-        data_dir="en-US",
-        text_column="utt",
-        label_column="intent",
-    ),
-
-    quantization=QuantizationConfig(
-        activation=QuantTensorConfig(
-            format="int8",
-            symmetric=True,
-            per_channel=False,
+def build_config() -> ExperimentConfig:
+    return ExperimentConfig(
+        name="xlmr_intermediate_mul8s_1KVA",
+        model=ModelConfig(
+            hf_id="qanastek/XLMRoberta-Alexa-Intents-Classification",
+            task_type="classification"
         ),
-        weight=QuantTensorConfig(
-            format="int8",
-            symmetric=True,
-            per_channel=True,
+        dataset=DatasetConfig(
+            name="AmazonScience/massive",
+            split="test",
+            revision="refs/convert/parquet",
+            data_dir="en-US",
+            text_col="utt",
+            label_col="intent",
         ),
-        calibration=CalibrationConfig(
-            method="histogram",
-            percentile=99.9,
-            batches=50,
-        ),
-    ),
-
-    approximation=ApproximationConfig(
-        backend="torch_lut",
-    ),
-
-    layer_policy=LayerPolicyConfig(
-        default_mode="fp32",
-        rules=[
-            LayerRule(
-                selector="roberta.encoder.layer.0.intermediate.dense",
-                mode="approximate",
-                lut_path="src/approxlm/resources/luts/mul8s_1KVA.npy",
+        quantization=QuantizationConfig(
+            activation=QuantizerConfig(
+                format="int8",
+                symmetric=True,
+                per_channel=False,
             ),
-        ],
-    ),
+            weight=QuantizerConfig(
+                format="int8",
+                symmetric=True,
+                per_channel=True,
+            ),
+            calibration=CalibrationConfig(
+                method="histogram",
+                percentile=99.9,
+                batches=50,
+            ),
+        ),
+        runtime=RuntimeConfig(
+            batch_size=256,
+            max_length=128,
+            backend_quantize=True,
+        ),
+        trace=TraceConfig(enabled=False),
+        lut_directory="src/approxlm/resources/luts",
+        layer_modes={
+            "roberta.encoder.layer.0.intermediate.dense": "mul8s_1KVA",
+        },
+    )
 
-    runtime=RuntimeConfig(
-        batch_size=128,
-        max_length=128,
-        device="cuda",
-        backend_quantize=True,
-    ),
-)
-
-result = run_experiment(config)
-print(result.metrics)
+result = run_experiment(build_config())
+print(json.dumps(result, indent=2, default=str))
 ```
 
 ---

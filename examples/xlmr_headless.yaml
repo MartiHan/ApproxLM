@@ -1,0 +1,24 @@
+name: xlmr_intermediate_mul8s_1KR3
+model:
+  hf_id: qanastek/XLMRoberta-Alexa-Intents-Classification
+  task_type: classification
+  trust_remote_code: false
+dataset:
+  name: AmazonScience/massive
+  split: test
+  revision: refs/convert/parquet
+  data_dir: en-US
+  text_col: utt
+  label_col: intent
+quantization:
+  activation: {format: int8, symmetric: true, per_channel: false}
+  weight: {format: int8, symmetric: true, per_channel: true}
+  calibration: {method: histogram, percentile: 99.9, batches: 50}
+runtime:
+  batch_size: 256
+  max_length: 128
+  backend_quantize: true
+trace: {enabled: false}
+lut_directory: src/approxlm/resources/luts
+layer_modes:
+  roberta.encoder.layer.0.intermediate.dense: mul8s_1KVA
