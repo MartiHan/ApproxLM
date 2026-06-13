@@ -1,4 +1,5 @@
 import re
+from importlib import resources
 from contextlib import nullcontext
 from datetime import datetime
 from functools import lru_cache
@@ -19,6 +20,8 @@ from approxlm.adapters.huggingface.evaluation import (
 from approxlm.domain.specs import LayerQuantSpec
 from approxlm.application.defaults import DEFAULT_MODEL, DEFAULT_DATASET, DEFAULT_DECODER_MODEL, DEFAULT_DECODER_DATASET, APPROX_OPTIONS, DEFAULT_TRACE_ENABLED, DEFAULT_ATTENTION_MODE, BLOCK_INDEX_PATTERN
 
+
+LUT_RESOURCE_PACKAGE = "approxlm.resources.luts"
 
 
 try:
@@ -171,7 +174,8 @@ def is_fp32_baseline(layer_modes: Dict[str, str]) -> bool:
 def mode_to_lut_path(mode: str | None) -> str | None:
     if mode in {None, "None", "fp32", "int8_exact"}:
         return None
-    return f"{mode}.npy"
+    filename = mode if mode.endswith(".npy") else f"{mode}.npy"
+    return str(resources.files(LUT_RESOURCE_PACKAGE).joinpath(filename))
 
 
 def build_layer_specs(layer_modes: Dict[str, str], task_type: str = "classification") -> Dict[str, LayerQuantSpec]:
@@ -250,7 +254,7 @@ def run_experiment_backend(
 
     if is_fp32_baseline(config["layer_modes"]):
         return run_baseline_experiment(
-            batch_size=128,
+            batch_size=256,
             profile_layer_modes=config["layer_modes"],
             **common_kwargs,
         )

@@ -177,7 +177,7 @@ class QuantizedLinearBackend(nn.Module):
                 if weight_scale.numel() != 1:
                     raise RuntimeError("Per-tensor weight scale must be scalar.")
                 weight_scale = weight_scale.reshape(())
-            weight_q = torch.round(weight_fp / weight_scale).clamp(self.act_format.qmin, self.act_format.qmax).to(self.act_format.storage_dtype)
+            weight_q = torch.round(weight_fp / weight_scale).clamp(self.weight_format.qmin, self.weight_format.qmax).to(self.weight_format.storage_dtype)
             self.register_buffer("w_scale", weight_scale)
 
         self.register_buffer("w_q", weight_q)

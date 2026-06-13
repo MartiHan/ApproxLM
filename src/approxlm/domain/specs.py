@@ -59,7 +59,7 @@ class DecoderOnlyDatasetSpec:
 
 @dataclass(frozen=True)
 class RuntimeSpec:
-    batch_size: int = 64
+    batch_size: int = 256
     max_length: int = 128
     num_workers: int = 0
     pin_memory: bool = True

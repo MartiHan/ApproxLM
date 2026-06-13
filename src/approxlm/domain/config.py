@@ -54,7 +54,7 @@ class DatasetConfig:
 
 @dataclass(frozen=True)
 class RuntimeConfig:
-    batch_size: int = 64
+    batch_size: int = 256
     max_length: int = 128
     max_samples: int = 100
     max_input_length: int = 1024
