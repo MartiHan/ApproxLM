@@ -151,6 +151,7 @@ Example dispatcher use cases:
 approxlm-dispatch recipes/xlmr_blockwise.yaml
 approxlm-dispatch recipes/xlmr_layerwise.yaml
 approxlm-dispatch recipes/qwen2_layerwise.yaml
+approxlm-dispatch recipes/qwen2_blockwise.yaml
 ```
 
 ---

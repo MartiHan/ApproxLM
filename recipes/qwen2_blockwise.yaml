@@ -1,0 +1,83 @@
+dispatcher_name: decoder_only_wiki2_25k_mlp_multipliers_24
+description: >
+  Decoder-only WikiText-2 perplexity sweep over the first 25k tokenized test
+  tokens. Attention projections stay fp32. MLP projections use int8_exact for
+  the baseline, then each mul8 multiplier is evaluated once across all decoder
+  MLPs and once per decoder block.
+
+metrics_to_plot:
+  - perplexity
+  - avg_nll
+  - reference_token_count
+
+base_config:
+  task_type: decoder_only
+  model_url: Qwen/Qwen2-0.5B
+  dataset_url: wikitext
+  dataset_config: wikitext-2-raw-v1
+  dataset_format: wikitext
+  split_name: test
+  max_samples: 0
+  wikitext_token_limit: 25000
+  max_input_length: 1024
+  max_new_tokens: 0
+  batch_size: 1
+  perplexity_stride: 512
+  calibration_batches: 16
+  calibration_percentile: 99.9
+  trust_remote_code: false
+  do_sample: false
+  temperature: 0.7
+  top_k: 20
+  bertscore_model: bert-base-uncased
+  trace_enabled: false
+  attention_mode:
+
+defaults:
+  architecture: decoder_only
+  num_decoder_layers: 24
+  default_mode: fp32
+  attention_default_mode: fp32
+  non_attention_default_mode: int8_exact
+
+experiments:
+  - name: baseline_attention_fp32_mlp_int8_exact
+    label: baseline:attn_fp32:mlp_int8_exact
+    tags: [baseline, decoder_only, attention_fp32, mlp_int8_exact]
+
+sweeps:
+  - multiplier: mul8s_1KVA
+    decoder_layer_scope: non_attention
+    include_all_decoder_layers: false
+    include_single_decoder_blocks: true
+    include_single_decoder_layers: false
+
+  - multiplier: mul8s_1KVB
+    decoder_layer_scope: non_attention
+    include_all_decoder_layers: false
+    include_single_decoder_blocks: true
+    include_single_decoder_layers: false
+
+  - multiplier: mul8s_1KVM
+    decoder_layer_scope: non_attention
+    include_all_decoder_layers: false
+    include_single_decoder_blocks: true
+    include_single_decoder_layers: false
+
+  - multiplier: mul8s_1KXF
+    decoder_layer_scope: non_attention
+    include_all_decoder_layers: false
+    include_single_decoder_blocks: true
+    include_single_decoder_layers: false
+
+  - multiplier: mul8s_1KR3
+    decoder_layer_scope: non_attention
+    include_all_decoder_layers: false
+    include_single_decoder_blocks: true
+    include_single_decoder_layers: false
+
+  - multiplier: mul8s_1KR6
+    decoder_layer_scope: non_attention
+    include_all_decoder_layers: false
+    include_single_decoder_blocks: true
+    include_single_decoder_layers: false

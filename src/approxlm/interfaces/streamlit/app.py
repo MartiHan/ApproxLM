@@ -39,7 +39,7 @@ from approxlm.adapters.persistence.sqlite import (
 )
 
 
-DEFAULT_DISPATCHER_CONFIG = str(Path(__file__).with_name("dispatcher_configs") / "decoder_wiki2_25k_mlp_multipliers_24.yaml")
+DEFAULT_DISPATCHER_CONFIG = "recipes/xlmr_blockwise.yaml"
 DISPATCHER_PLOT_ORDER = [f"enc{i}" for i in range(12)] + ["all encs"]
 DECODER_DISPATCHER_PLOT_ORDER = [f"dec{i}" for i in range(28)] + ["all decs"]
 DEFAULT_WIKI2_PROMPT = "Valkyria Chronicles III is a tactical role-playing video game developed by Sega and Media.Vision for the PlayStation Portable."
