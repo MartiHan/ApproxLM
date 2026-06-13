@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from importlib import resources
 from pathlib import Path
-from typing import Iterable
 
 
 LUT_RESOURCE_PACKAGE = "approxlm.resources.luts"
@@ -51,10 +50,3 @@ def resolve_lut_path(
     checked = [str(candidate) for candidate in candidates]
     checked.append(f"{LUT_RESOURCE_PACKAGE}/{filename}")
     raise FileNotFoundError(f"Could not find LUT '{filename}'. Checked: {', '.join(checked)}")
-
-
-def options_with_current(options: Iterable[str], current: str | None) -> list[str]:
-    values = list(options)
-    if current not in {None, ""} and current not in values:
-        values.append(str(current))
-    return values

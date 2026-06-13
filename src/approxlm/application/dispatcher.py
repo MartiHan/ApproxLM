@@ -1,4 +1,4 @@
-import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -73,15 +73,13 @@ def _load_config_file(config_path: str | Path) -> Dict[str, Any]:
         raise FileNotFoundError(f"Dispatcher config not found: {path}")
 
     suffix = path.suffix.lower()
-    raw_text = path.read_text(encoding="utf-8")
-    if suffix == ".json":
-        return json.loads(raw_text)
-    if suffix in {".yaml", ".yml"}:
-        if yaml is None:
-            raise RuntimeError("PyYAML is not available, so YAML dispatcher configs cannot be loaded.")
-        payload = yaml.safe_load(raw_text)
-        return payload or {}
-    raise ValueError(f"Unsupported dispatcher config format: {suffix}")
+    if suffix not in {".yaml", ".yml"}:
+        raise ValueError(f"Unsupported dispatcher config format: {suffix}. Use .yaml or .yml.")
+    if yaml is None:
+        raise RuntimeError("PyYAML is not available, so YAML dispatcher configs cannot be loaded.")
+
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return payload or {}
 
 
 def _build_encoder_layer_modes(
@@ -632,6 +630,64 @@ def load_dispatcher_config(config_path: str | Path) -> Dict[str, Any]:
         raise ValueError("Dispatcher config must define either a supported preset or base_config plus experiments and/or sweeps.")
 
     return _expand_custom_dispatcher_config(config)
+
+
+def run_dispatcher_config(config_path: str | Path, progress_callback=None) -> Dict[str, Any]:
+    from approxlm.application.runtime import execute_and_store_experiment
+
+    dispatcher = load_dispatcher_config(config_path)
+    experiments = dispatcher.get("experiments", [])
+    if not experiments:
+        raise RuntimeError("Dispatcher config does not contain any experiments.")
+
+    dispatcher_name = dispatcher.get("dispatcher_name", Path(config_path).stem)
+    dispatcher_run_id = datetime.now().strftime("dispatch_%Y%m%d_%H%M%S_%f")
+    base_config = dict(dispatcher.get("base_config", {}))
+    metrics_to_plot = dispatcher.get("metrics_to_plot")
+    records = []
+    total = len(experiments)
+
+    for index, experiment in enumerate(experiments, start=1):
+        experiment_name = experiment.get("name") or f"{dispatcher_name}_{index:02d}"
+        experiment_label = experiment.get("label") or experiment_name
+        run_config = {
+            **base_config,
+            **{k: v for k, v in experiment.items() if k not in {"name", "label", "tags"}},
+            "dispatcher_name": dispatcher_name,
+            "dispatcher_run_id": dispatcher_run_id,
+            "dispatcher_order": index - 1,
+            "dispatcher_experiment_name": experiment_name,
+            "dispatcher_experiment_label": experiment_label,
+            "dispatcher_tags": list(experiment.get("tags", [])),
+        }
+        if metrics_to_plot is not None:
+            run_config["metrics_to_plot"] = metrics_to_plot
+
+        def update_progress(progress: float, message: str, run_index: int = index, run_label: str = experiment_label) -> None:
+            normalized = ((run_index - 1) + max(0.0, min(progress, 1.0))) / max(total, 1)
+            if progress_callback is not None:
+                progress_callback(
+                    normalized,
+                    f"[{run_index}/{total}] {run_label} | {message}",
+                )
+
+        records.append(
+            execute_and_store_experiment(
+                experiment_name=experiment_name,
+                config=run_config,
+                progress_callback=update_progress,
+            )
+        )
+
+    summary = build_dispatcher_summary(records)
+    if progress_callback is not None:
+        progress_callback(1.0, f"Dispatcher finished: {dispatcher_name}")
+    return {
+        "dispatcher_name": dispatcher_name,
+        "dispatcher_run_id": dispatcher_run_id,
+        "records": records,
+        "summary": summary,
+    }
 
 
 def extract_accuracy(metrics: Dict[str, Any]) -> float:
