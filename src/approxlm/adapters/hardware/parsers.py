@@ -131,7 +131,7 @@ class PowerMetrics:
 
 def parse_yosys_stats(text: str) -> SynthesisMetrics:
     match = re.search(
-        rf"Chip area for top module\b.*?:\s*({_FLOAT})",
+        rf"Chip area for module\b.*?:\s*({_FLOAT})",
         text,
         flags=re.IGNORECASE,
     )

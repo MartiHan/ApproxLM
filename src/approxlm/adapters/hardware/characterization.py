@@ -179,7 +179,7 @@ class YosysOpenSTACharacterizationAdapter:
             top=config.top,
             area_um2=synthesis_metrics.area_um2,
             cell_count=synthesis_metrics.cell_count,
-            max_delay_ns=timing_metrics.max_delay_ns,
+            max_delay_ns=abs(timing_metrics.max_delay_ns),
             min_delay_ns=timing_metrics.min_delay_ns,
             worst_slack_ns=timing_metrics.worst_slack_ns,
             total_power_uw=power_metrics.total_power_uw,
