@@ -183,6 +183,7 @@ ApproxLM includes an optional hardware-characterization flow for estimating the 
 - [OpenSTA - Parallax Static Timing Analyzer](https://github.com/parallaxsw/OpenSTA) for static timing and power estimation
 
 **Additional requirements**
+
 The following executables must be installed and available on the system `PATH`:
 ```bash
 yosys --v
@@ -235,12 +236,14 @@ hardware/runs/<top-module>/
 └── metadata.json
 ```
 
-Reported metrics
-Metric	Interpretation
-Area	Sum of the areas of the mapped standard cells reported by Yosys
-Delay	Longest constrained input-to-output data path reported by OpenSTA
-Power	Liberty-based estimate of internal, switching, and leakage power
-Cell count	Number of mapped cells, including cells contained in helper-module hierarchy
+**Reported metrics**
+
+| Metric |Interpretation |
+|--------|--------------|
+|Area | Sum of the areas of the mapped standard cells reported by Yosys |
+|Delay | Longest constrained input-to-output data path reported by OpenSTA |
+|Power | Liberty-based estimate of internal, switching, and leakage power |
+|Cell count |	Number of mapped cells |
 
 Note that the reported area, delay, and power values are pre-layout estimates. They do not include placement, routing, extracted wire parasitics, filler cells, power-grid overhead, or congestion effects.
 
