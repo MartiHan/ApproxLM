@@ -11,7 +11,7 @@ dataset:
 quantization:
   activation: {format: int8, symmetric: true, per_channel: true}
   weight: {format: int8, symmetric: true, per_channel: true}
-  calibration: {method: histogram, percentile: 99.9, batches: 4}
+  calibration: {method: histogram, percentile: 99.9, batches: 16}
 runtime:
   batch_size: 1
   max_samples: 16
@@ -19,6 +19,6 @@ runtime:
   max_new_tokens: 32
   device: cuda
 trace: {enabled: false}
-lut_directory: src/axlm/resources/luts
+lut_directory: src/approxlm/resources/luts
 layer_modes:
   model.layers.0.mlp.down_proj: mul8s_1KR3
