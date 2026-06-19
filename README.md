@@ -106,7 +106,7 @@ def build_config() -> ExperimentConfig:
             activation=QuantizerConfig(
                 format="int8",
                 symmetric=True,
-                per_channel=False,
+                per_channel=True,
             ),
             weight=QuantizerConfig(
                 format="int8",
@@ -176,6 +176,76 @@ The GUI supports:
 * MAC-profile views.
 
 ---
+
+## Hardware synthesis
+ApproxLM includes an optional hardware-characterization flow for estimating the cost of exact and approximate multiplier designs. The flow uses:
+- [Yosys Open SYnthesis Suite](https://github.com/YosysHQ/yosys) for RTL synthesis and standard-cell technology mapping
+- [OpenSTA - Parallax Static Timing Analyzer](https://github.com/parallaxsw/OpenSTA) for static timing and power estimation
+
+**Additional requirements**
+The following executables must be installed and available on the system `PATH`:
+```bash
+yosys --v
+sta --v
+```
+
+A compatible Liberty standard-cell library is also required. The experiments in this project use the typical-corner [Nangate45 Open Cell Library](https://github.com/The-OpenROAD-Project/OpenROAD-flow-scripts/blob/master/flow/platforms/nangate45/lib/NangateOpenCellLibrary_typical.lib):
+`hardware/pdk/nangate45/NangateOpenCellLibrary_typical.lib`
+
+
+Then, the Verilog designs of approximate multipliers can be synthesized using the code example below:
+
+The `arithmetic_helpers.v` file provides functional definitions of the `HAX1` (half adder) and `FAX1` (full adder) helper modules used by the multiplier descriptions. These helpers are flattened and remapped to the selected standard-cell library during synthesis.
+
+### Python example
+
+```python
+from approxlm.hardware import characterize_verilog
+
+report = characterize_verilog(
+    verilog="hardware/rtl/approximate/mul8s_1KR3_pdk45.v",
+    extra_sources=[
+        "hardware/rtl/helpers/arithmetic_helpers.v",
+    ],
+    top="mul8s_1KR3",
+    liberty=(
+        "hardware/pdk/nangate45/"
+        "NangateOpenCellLibrary_typical.lib"
+    ),
+    output_dir="hardware/runs"
+)
+
+print(f"Area: {report.area_um2} µm²")
+print(f"Maximum delay: {report.max_delay_ns} ns")
+print(f"Total power: {report.total_power_uw} µW")
+print(f"Cell count: {report.cell_count}")
+print(f"Reports: {report.output_dir}")
+```
+
+For debugging, the full logs are stored under:
+```bash
+hardware/runs/<top-module>/ 
+├── synthesis.ys 
+├── synthesis.log 
+├── synthesis_stats.txt 
+├── <top-module>_mapped.v 
+├── <top-module>_mapped.json 
+├── timing.tcl 
+├── timing.log 
+└── metadata.json
+```
+
+Reported metrics
+Metric	Interpretation
+Area	Sum of the areas of the mapped standard cells reported by Yosys
+Delay	Longest constrained input-to-output data path reported by OpenSTA
+Power	Liberty-based estimate of internal, switching, and leakage power
+Cell count	Number of mapped cells, including cells contained in helper-module hierarchy
+
+Note that the reported area, delay, and power values are pre-layout estimates. They do not include placement, routing, extracted wire parasitics, filler cells, power-grid overhead, or congestion effects.
+
+The absolute values depend on the synthesis tool, Liberty library, process corner, input-drive assumptions, output load, and switching-activity model. Results should therefore be compared only between designs characterized with the same configuration.
+
 
 ## Repository structure
 
